@@ -1,6 +1,10 @@
 <?php
 namespace usualtool\Wechat;
-use library\UsualToolInc\UTInc;
+use usualtool\Wechat\Http;
+/**
+ *公众号
+ *小程序部分可用：如客服消息
+*/
 class Wechat{
     /**
      * @param string $appid 公众号APPID
@@ -37,7 +41,7 @@ class Wechat{
      */
     public function GetNewToken(){
         $url = "{$this->appline}/cgi-bin/token?grant_type=client_credential&appid={$this->appid}&secret={$this->appsecret}";
-        $access_token_Arr =  $this->GetData($url);
+        $access_token_Arr =  Http::GetData($url);
         return $access_token_Arr['access_token'];
     }
     /**
@@ -46,7 +50,7 @@ class Wechat{
      */
     public function GetTemp(){
         $url = "{$this->appline}/cgi-bin/template/get_all_private_template?access_token={$this->GetToken()}";
-        $res = $this->GetData($url);
+        $res = Http::GetData($url);
         return $res;
     }
     /**
@@ -57,7 +61,7 @@ class Wechat{
     public function DelTemp($id){
         $url = "{$this->appline}/cgi-bin/template/del_private_template?access_token={$this->GetToken()}";
         $data=json_encode(array("template_id"=>$id));
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -78,7 +82,7 @@ class Wechat{
                 "url":"'.$link.'",
                 "data":'.$data.'
             }';
-            $this->PostData($url,$senddata);
+            Http::PostData($url,$senddata);
         }
     }
     /**
@@ -139,7 +143,7 @@ class Wechat{
                 "content":"'.$text.'"
             }
         }';
-        $this->PostData($url,$data);
+        Http::PostData($url,$data);
     }
     /**
      * 向部分粉丝（48H内互动有效）发送图文消息（较慢）
@@ -163,7 +167,7 @@ class Wechat{
                     "thumb_url": "'.$photo.'"
                 }
             }';
-            $this->PostData($url,$data);
+            Http::PostData($url,$data);
         }
     }
     /**
@@ -173,7 +177,7 @@ class Wechat{
      */
     public function CreatMenu($data){
         $url = "{$this->appline}/cgi-bin/menu/create?access_token={$this->GetToken()}";
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         $rerult=$res['errmsg'];
         return $rerult;
     }
@@ -183,7 +187,7 @@ class Wechat{
      */
     public function DelMenu(){
         $url = "{$this->appline}/cgi-bin/menu/delete?access_token={$this->GetToken()}";
-        $res = $this->GetData($url);
+        $res = Http::GetData($url);
         $rerult = $res['errmsg'];
         return $rerult;
     }
@@ -204,7 +208,7 @@ class Wechat{
             if($obj->Ticket){
                 $ticket=$obj->Ticket;
                 $eventkey=$obj->EventKey;
-                UTInc::MakeDir(UTF_ROOT."/log/wechat/".$this->appid."/ticket/");
+                Http::MakeDir(UTF_ROOT."/log/wechat/".$this->appid."/ticket/");
                 $jsonurl=UTF_ROOT."/log/wechat/".$this->appid."/ticket/".$ticket.".json";
                 $data=json_encode(array("openid"=>$openid,"eventkey"=>$eventkey));
                 file_put_contents($jsonurl,$data);
@@ -230,7 +234,7 @@ class Wechat{
                     $content="<a href='".$obj->Url."'><b>".$obj->Title."</b><br>".$obj->Description."</a>";
                 endif;
                 $time=$obj->CreateTime;
-                UTInc::MakeDir(UTF_ROOT."/log/wechat/".$this->appid."/");
+                Http::MakeDir(UTF_ROOT."/log/wechat/".$this->appid."/");
                 $jsonurl=UTF_ROOT."/log/wechat/".$this->appid."/".$openid.".json";
                 //存放事件日志
                 //重复消息过滤
@@ -295,7 +299,7 @@ class Wechat{
      */
     public function GetUserList(){
         $url = "{$this->appline}/cgi-bin/user/get?access_token={$this->GetToken()}";
-        $res = $this->GetData($url);
+        $res = Http::GetData($url);
         return $res;
     }
     /**
@@ -305,7 +309,7 @@ class Wechat{
      */
     public function GetUser($openid){
         $url = "{$this->appline}/cgi-bin/user/info?access_token={$this->GetToken()}&openid={$openid}&lang=zh_CN";
-        $res = $this->GetData($url);
+        $res = Http::GetData($url);
         return $res;
     }
     /**
@@ -316,7 +320,7 @@ class Wechat{
     public function UserBlack($begin=''){
         $url = "{$this->appline}/cgi-bin/tags/members/getblacklist?access_token={$this->GetToken()}";
         $data='{"begin_openid":"'.$begin.'"}';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         $resx=json_encode($res);
         if(strpos($resx,'errmsg')!==false){
             return $res["errmsg"];
@@ -334,7 +338,7 @@ class Wechat{
         $data='{
         "openid_list":["'.$openid.'"]
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res["errmsg"];
     }
     /**
@@ -347,7 +351,7 @@ class Wechat{
         $data='{
             "openid_list":["'.$openid.'"]
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res["errmsg"];
     }
     /**
@@ -356,7 +360,7 @@ class Wechat{
      */
     public function GetTag(){
         $url = "{$this->appline}/cgi-bin/tags/get?access_token={$this->GetToken()}";
-        $res = $this->GetData($url);
+        $res = Http::GetData($url);
         return $res;
     }
     /**
@@ -371,7 +375,7 @@ class Wechat{
                 "name":"'.$name.'"
             }
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -388,7 +392,7 @@ class Wechat{
                 "name":"'.$name.'"
             }
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -403,7 +407,7 @@ class Wechat{
                 "id":"'.$id.'"
             }
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -415,7 +419,7 @@ class Wechat{
     public function GetTagUser($id,$begin=''){
         $url = "{$this->appline}/cgi-bin/user/tag/get?access_token={$this->GetToken()}";
         $data='{"tagid":"'.$id.'","next_openid":"'.$begin.'"}';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -426,7 +430,7 @@ class Wechat{
     public function GetUserTag($openid){
         $url = "{$this->appline}/cgi-bin/tags/getidlist?access_token={$this->GetToken()}";
         $data='{"openid":"'.$openid.'"}';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         $tag=$res["tagid_list"];
         return $tag;
     }
@@ -442,7 +446,7 @@ class Wechat{
             "openid_list":'.json_encode($openid).',
             "tagid" : '.$id.'
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $tag;
     }
     /**
@@ -457,7 +461,7 @@ class Wechat{
             "openid_list":'.json_encode($openid).',
             "tagid" : '.$id.'
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $tag;
     }
     /**
@@ -467,7 +471,7 @@ class Wechat{
      */
     public function GetVoice($voiceid){
         $url = "{$this->appline}/cgi-bin/media/voice/queryrecoresultfortext?access_token={$this->GetToken()}&voice_id={$voiceid}&lang=zh_CN";
-        $res = $this->PostData($url);
+        $res = Http::PostData($url);
         $result =$res['result'];
         return $result;
     }
@@ -480,7 +484,7 @@ class Wechat{
     public function GetLocal($type,$mediaid){
         $mediaurl = "{$this->appline}/cgi-bin/media/get?access_token={$this->GetToken()}&media_id={$mediaid}";
         $res = file_get_contents($mediaurl);
-        UTInc::MakeDir(APP_ROOT."/assets/upload/wechat/");
+        Http::MakeDir(APP_ROOT."/assets/upload/wechat/");
         if($type=="voice"){
             $respath = APP_ROOT ."/assets/upload/wechat/".$mediaid.".amr";
         }elseif($type=="video"){
@@ -504,18 +508,50 @@ class Wechat{
             "msgid":{$msgid},
             "number":{$limit} 
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
-     * 生成小程序二维码
-     * @param array $arr 请求数据{"path":"page/index/index","width":430} 
-     * @return blob
+     * 获取已发布文章列表
+     * @param int $offset 开始位置 默认0
+     * @param int $count 数量 1-20
+     * @param int $istext 0返回content 1不返回content
+     * @return array
      */
-    public function GetNewQrcode($arr){
-        $url = "{$this->appline}/cgi-bin/wxaapp/createwxaqrcode?access_token={$this->GetToken()}";
-        $data = json_encode($arr);
-        $res = $this->PostData($url,$data);
+    public function GetPublish($offset='0',$count='20',$istext='1'){
+        $url = "{$this->appline}/cgi-bin/freepublish/batchget?access_token={$this->GetToken()}";
+        $data=json_encode(array(
+				    "offset"=>$offset,
+					  "count"=>$count,
+					  "no_content"=>$istext
+				));
+        $res = Http::PostData($url,$data);
+        return $res;
+    }
+    /**
+     * 获取已发布文章详情
+     * @param string $aid 文章ID
+     * @return array
+     */
+    public function GetArticle($aid){
+        $url = "{$this->appline}/cgi-bin/freepublish/getarticle?access_token={$this->GetToken()}";
+        $data=json_encode(array(
+				    "article_id"=>$aid
+				));
+        $res = Http::PostData($url,$data);
+        return $res;
+    }
+    /**
+     * 删除已发布文章
+     * @param string $aid 文章ID
+     * @return array
+     */
+    public function DelPublish($aid){
+        $url = "{$this->appline}/cgi-bin/freepublish/delete?access_token={$this->GetToken()}";
+        $data=json_encode(array(
+				    "article_id"=>$aid
+				));
+        $res = Http::PostData($url,$data);
         return $res;
     }
     /**
@@ -561,7 +597,7 @@ class Wechat{
         }
     }
     /**
-     * 获取带参数的二维码（1800秒有效期）
+     * 创建带参数的二维码（1800秒有效期）
      * @param string $eventkey 事件标记
      * @return array
      */
@@ -576,46 +612,8 @@ class Wechat{
                 }
             }
         }';
-        $res = $this->PostData($url,$data);
+        $res = Http::PostData($url,$data);
         return $res;
-    }
-    /**
-     * GET数据到微信并返回数据
-     * @param string $url 地址
-     * @return array
-     */
-    public function GetData($url){
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $output = curl_exec($ch);
-        curl_close($ch);
-        return json_decode($output,true);
-    }
-    /**
-     * POST数据到微信并返回数据
-     * @param string $url 地址
-     * @param json/string $data 发送数据JSON
-     * @return array
-     */
-    public function PostData($url,$data=''){         
-        $ch = curl_init();  
-        curl_setopt($ch, CURLOPT_URL, $url);  
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);   
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);  
-        if(!empty($data)){  
-            curl_setopt($ch, CURLOPT_POST, TRUE);  
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);  
-        }  
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);  
-        $output = curl_exec($ch);  
-        curl_close($ch);  
-        if(is_null(json_decode($output))){
-            return "data:image/png;base64,".base64_encode($output);
-        }else{
-            return json_decode($output,true);
-        }        
     }
     /**
      * 微信被动通信验证
