@@ -10,6 +10,36 @@ class Http{
         return @mkdir($dir, $mode);
     }
     /**
+     * 提取所有文章
+     */
+    function GetAllArticle($data){
+        $article = [];
+        if(!isset($data['item']) || !is_array($data['item'])){
+            return $article;
+        }
+        foreach($data['item'] as $group){
+            if (!isset($group['content']['news_item']) || !is_array($group['content']['news_item'])){
+                continue;
+            }
+            $addtime = $group['update_time'] ?? 0;
+            $sendid = $group['article_id'] ?? '';
+            foreach ($group['content']['news_item'] as $item) {
+                if(!is_array($item)) {
+                    continue;
+                }
+                 $article[] = [
+                    'sendid'  =>  $sendid,
+                    'title'       =>  $item['title'] ?? '',
+                    'digest'      =>  $item['digest'] ?? '',
+                    'url'         =>  $item['url'] ?? '',
+                    'thumb_url'   =>  $item['thumb_url'] ?? '',
+                    'addtime' =>  date("Y-m-d H:i:s",$addtime)
+                ];
+            }
+        }
+        return $article;
+    }
+    /**
      * GET数据
      */
     public static function GetData($url){
@@ -42,4 +72,5 @@ class Http{
             return json_decode($output,true);
         }        
     }
+
 }
