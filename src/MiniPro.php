@@ -103,6 +103,29 @@ class MiniPro{
         return $res;
     }
     /**
+     * 解析加密参数（授权获取手机号/用户信息）
+     * @param string $sessionKey 会话密钥（ChkLogin 返回的 session_key）
+     * @param string $encryptedData 加密数据
+     * @param string $iv 偏移量
+     * @param string $data 返回解析数据（引用）
+     * @return string 0 成功，-41003 失败
+     */
+    public function DecryptData($sessionKey,$encryptedData,$iv,&$data){
+        $aesKey=base64_decode($sessionKey);
+        $aesIV=base64_decode($iv);
+        $aesCipher=base64_decode($encryptedData);
+        $result=openssl_decrypt($aesCipher,"AES-128-CBC",$aesKey,1,$aesIV);
+        $dataObj=json_decode($result);
+        if($dataObj==NULL || empty($dataObj)){
+            return "-41003";
+        }
+        if($dataObj->watermark->appid!=$this->appid){
+            return "-41003";
+        }
+        $data=$result;
+        return 0;
+    }
+    /**
      * 小程序码
      * @param string $path 路径
      * @param int $width 宽度
