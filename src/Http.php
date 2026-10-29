@@ -48,7 +48,7 @@ class Http{
         curl_setopt($ch,CURLOPT_RETURNTRANSFER,1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         $output = curl_exec($ch);
-        curl_close($ch);
+        if(PHP_VERSION_ID < 80000) curl_close($ch);
         return json_decode($output,true);
     }
     /**
@@ -65,7 +65,7 @@ class Http{
         }  
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);  
         $output = curl_exec($ch);  
-        curl_close($ch);  
+        if(PHP_VERSION_ID < 80000) curl_close($ch);  
         if(is_null(json_decode($output))){
             return "data:image/png;base64,".base64_encode($output);
         }else{
