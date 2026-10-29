@@ -1,39 +1,75 @@
 <?php
 namespace usualtool\Wechat;
-use usualtool\Wechat\Http;
 /**
  *小程序专用
 */
 class MiniPro{
-    public function __construct($appid,$appsecret,$token=''){
-			  $this->appline="https://api.weixin.qq.com";
+    private $appline;
+    private $appid;
+    private $appsecret;
+    private $tokenlife=5400;
+    public function __construct($appid,$appsecret){
+        $this->appline="https://api.weixin.qq.com";
         $this->appid=$appid;
         $this->appsecret=$appsecret;
-        $this->token=$token;
     }
     /**
-     * access_token
+     * 获取access_token
+     * @param bool $refresh 传 true 跳过缓存强制重取
      * @return string
      */
-    public function GetToken(){
-        $file = file_get_contents(UTF_ROOT."/log/minpro.".$this->appid.".token.json",true);
-        $result = json_decode($file,true);
-        if($result==null || !isset($result['expires']) || time()>$result['expires']):
-            $data = array();
-            $data['access_token'] = $this->GetNewToken();
-            $data['expires']=time()+5400;0
-							.
-            $jsonStr =  json_encode($data);
-            file_put_contents(UTF_ROOT."/log/minpro.".$this->appid.".token.json",$jsonStr);
-            return $data['access_token'];
-        else:
-            return $result['access_token'];
+    public function GetToken($refresh=false){
+        $cache=UTF_ROOT."/log/minpro.".$this->appid.".stable_token.json";
+        if(!$refresh):
+            $info=json_decode((string)@file_get_contents($cache),true);
+            if(is_array($info) && !empty($info['access_token']) && isset($info['expires']) && time()<=$info['expires']):
+                return $info['access_token'];
+            endif;
         endif;
+        $token=$this->GetNewToken();
+        if($token===''):
+            return '';
+        endif;
+        @file_put_contents($cache,json_encode(array("access_token"=>$token,"expires"=>time()+$this->tokenlife)));
+        return $token;
     }
+    /**
+     * 从 stable 接口取新 access_token
+     * @return string 失败返回空串
+     */
     public function GetNewToken(){
-        $url = "{$this->appline}/cgi-bin/token?grant_type=client_credential&appid={$this->appid}&secret={$this->appsecret}";
-        $access_token_Arr =  $this->GetData($url);
-        return $access_token_Arr['access_token'];
+        $data=json_encode(array(
+            "grant_type"=>"client_credential",
+            "appid"=>$this->appid,
+            "secret"=>$this->appsecret,
+            "force_refresh"=>false
+        ));
+        $res=Http::PostData("{$this->appline}/cgi-bin/stable_token",$data);
+        if(is_array($res) && !empty($res['access_token'])):
+            $this->tokenlife=isset($res['expires_in']) ? max(60,(int)$res['expires_in']-300) : 5400;
+            return $res['access_token'];
+        endif;
+        return '';
+    }
+    /**
+     * 带 access_token 请求微信接口
+     * @param string $path 接口路径
+     * @param string $data json 请求体，传 null 表示 GET
+     * @param string $query 额外查询串（已 urlencode，用 & 追加）
+     * @return mixed
+     */
+    private function Api($path,$data=null,$query=''){
+        $token=$this->GetToken();
+        $url="{$this->appline}{$path}?access_token={$token}".($query==='' ? '' : "&".$query);
+        $res=is_null($data) ? Http::GetData($url) : Http::PostData($url,$data);
+        if(is_array($res) && isset($res['errcode']) && in_array((int)$res['errcode'],array(40001,40014,42001),true)):
+            $newtoken=$this->GetToken(true);
+            if($newtoken!=='' && $newtoken!==$token):
+                $url="{$this->appline}{$path}?access_token={$newtoken}".($query==='' ? '' : "&".$query);
+                $res=is_null($data) ? Http::GetData($url) : Http::PostData($url,$data);
+            endif;
+        endif;
+        return $res;
     }
     /**
      * 登录凭证校验
@@ -49,12 +85,11 @@ class MiniPro{
      * 登录状态
      * @param string $openid 用户标识
      * @param string $signature 登录签名
-		 * test:signature = hmac_sha256(session_key, "")
+     * test:signature = hmac_sha256(session_key, "")
      * @return array
      */
     public function LoginState($openid,$signature){
-        $url = "{$this->appline}/wxa/checksession?access_token={$this->GetToken()}&signature={$signature}&openid={$openid}&sig_method=hmac_sha256";
-        $res = Http::GetData($url);
+        $res = $this->Api("/wxa/checksession",null,"signature=".urlencode($signature)."&openid=".urlencode($openid)."&sig_method=hmac_sha256");
         return $res;
     }
     /**
@@ -63,9 +98,8 @@ class MiniPro{
      * @return array
      */
     public function GetPhone($code){
-        $url = "{$this->appline}/wxa/business/getuserphonenumber?access_token={$this->GetToken()}";
         $data=json_encode(array("code"=>$code));
-        $res = Http::PostData($url,$data);
+        $res = $this->Api("/wxa/business/getuserphonenumber",$data);
         return $res;
     }
     /**
@@ -76,15 +110,14 @@ class MiniPro{
      * @return array
      */
     public function GetQrcode($path,$width='430',$version='release'){
-        $url = "{$this->appline}/wxa/getwxacode?access_token={$this->GetToken()}";
         $data=json_encode(array(
-				    "path"=>$path,
-				    "width"=>$width,
-				    "auto_color"=>false,
-				    "is_hyaline"=>false,
-				    "env_version"=>$version
-				));
-        $res = Http::PostData($url,$data);
+            "path"=>$path,
+            "width"=>$width,
+            "auto_color"=>false,
+            "is_hyaline"=>false,
+            "env_version"=>$version
+        ));
+        $res = $this->Api("/wxa/getwxacode",$data);
         return $res;
     }
     /**
@@ -94,12 +127,11 @@ class MiniPro{
      * @return array
      */
     public function CreatQrcode($path,$width='430'){
-        $url = "{$this->appline}/cgi-bin/wxaapp/createwxaqrcode?access_token={$this->GetToken()}";
         $data=json_encode(array(
-				    "path"=>$path,
-				    "width"=>$width
-				));
-        $res = Http::PostData($url,$data);
+            "path"=>$path,
+            "width"=>$width
+        ));
+        $res = $this->Api("/cgi-bin/wxaapp/createwxaqrcode",$data);
         return $res;
     }
     /**
@@ -109,12 +141,11 @@ class MiniPro{
      * @return array
      */
     public function GetShorLink($path,$istime=false){
-        $url = "{$this->appline}/wxa/genwxashortlink?access_token={$this->GetToken()}";
         $data=json_encode(array(
-				    "page_url"=>$path,
-					  "is_permanent"=>$istime
-				));
-        $res = Http::PostData($url,$data);
+            "page_url"=>$path,
+                "is_permanent"=>$istime
+            ));
+        $res = $this->Api("/wxa/genwxashortlink",$data);
         return $res;
     }
     /**
@@ -125,14 +156,13 @@ class MiniPro{
      * @return array
      */
     public function CheckMsg($openid,$scene,$content){
-        $url = "{$this->appline}/wxa/msg_sec_check?access_token={$this->GetToken()}";
         $data=json_encode(array(
-				    "openid"=>$openid,
-					  "scene"=>$scene,
-					  "version"=>2,
-					  "content"=>$content
-				));
-        $res = Http::PostData($url,$data);
+            "openid"=>$openid,
+                "scene"=>$scene,
+                "version"=>2,
+                "content"=>$content
+            ));
+        $res = $this->Api("/wxa/msg_sec_check",$data);
         return $res;
     }
     /**
@@ -143,14 +173,13 @@ class MiniPro{
      * @return array
      */
     public function GetUserRank($openid,$scene,$ip){
-        $url = "{$this->appline}/wxa/getuserriskrank?access_token={$this->GetToken()}";
         $data=json_encode(array(
-					  "appid"=>$this->appid,
-				    "openid"=>$openid,
-					  "scene"=>$scene,
-					  "ip"=>$ip
-				));
-        $res = Http::PostData($url,$data);
+            "appid"=>$this->appid,
+            "openid"=>$openid,
+            "scene"=>$scene,
+            "ip"=>$ip
+        ));
+        $res = $this->Api("/wxa/getuserriskrank",$data);
         return $res;
     }
     /**
@@ -161,18 +190,20 @@ class MiniPro{
      * @return array
      */
     public function GetRetain($type,$startdate,$enddate){
-			  if($type=="day"):
-			      $url = "{$this->appline}/datacube/getweanalysisappiddailyretaininfo?access_token={$this->GetToken()}";
-			  elseif($type=="week"):
-            $url = "{$this->appline}/datacube/getweanalysisappidweeklyretaininfo?access_token={$this->GetToken()}";
-			  elseif($type=="month"):
-			      $url = "{$this->appline}/datacube/getweanalysisappidmonthlyretaininfo?access_token={$this->GetToken()}";
-			  endif;
+        if($type=="day"):
+            $path = "/datacube/getweanalysisappiddailyretaininfo";
+        elseif($type=="week"):
+            $path = "/datacube/getweanalysisappidweeklyretaininfo";
+            elseif($type=="month"):
+                  $path = "/datacube/getweanalysisappidmonthlyretaininfo";
+            else:
+                  return array("errcode"=>-1,"errmsg"=>"type 只能是 day/week/month");
+              endif;
         $data=json_encode(array(
-					  "begin_date"=>$startdate,
-				    "end_date"=>$enddate
-				));
-        $res = Http::PostData($url,$data);
+                      "begin_date"=>$startdate,
+                    "end_date"=>$enddate
+                ));
+        $res = $this->Api($path,$data);
         return $res;
     }
     /**
@@ -182,12 +213,11 @@ class MiniPro{
      * @return array
      */
     public function GetDaily($startdate,$enddate){
-			  $url = "{$this->appline}/datacube/getweanalysisappiddailysummarytrend?access_token={$this->GetToken()}";
         $data=json_encode(array(
-					  "begin_date"=>$startdate,
-				    "end_date"=>$enddate
-				));
-        $res = Http::PostData($url,$data);
+            "begin_date"=>$startdate,
+            "end_date"=>$enddate
+        ));
+        $res = $this->Api("/datacube/getweanalysisappiddailysummarytrend",$data);
         return $res;
     }
 }
