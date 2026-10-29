@@ -67,10 +67,15 @@ class Http{
         $output = curl_exec($ch);  
         if(PHP_VERSION_ID < 80000) curl_close($ch);  
         if(is_null(json_decode($output))){
-            return "data:image/png;base64,".base64_encode($output);
+            $mime="image/png";
+            if(substr($output,0,2)==="\xFF\xD8"){
+                $mime="image/jpeg";
+            }elseif(substr($output,0,8)==="\x89PNG\r\n\x1A\n"){
+                $mime="image/png";
+            }
+            return "data:".$mime.";base64,".base64_encode($output);
         }else{
             return json_decode($output,true);
         }        
     }
-
 }
